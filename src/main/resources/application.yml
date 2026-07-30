@@ -1,0 +1,55 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: driftwatch-stream
+  datasource:
+    url: ${DRIFTWATCH_DB_URL:jdbc:postgresql://localhost:5432/driftwatch}
+    username: ${DRIFTWATCH_DB_USER:driftwatch}
+    password: ${DRIFTWATCH_DB_PASSWORD:driftwatch}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  kafka:
+    bootstrap-servers: ${DRIFTWATCH_KAFKA:localhost:9092}
+    consumer:
+      group-id: ${driftwatch.group}
+      auto-offset-reset: latest
+      enable-auto-commit: false
+      max-poll-records: 500
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+      concurrency: 2
+
+driftwatch:
+  topic: ${DRIFTWATCH_TOPIC:model.predictions}
+  group: ${DRIFTWATCH_GROUP:driftwatch-stream}
+  psi-warn: 0.1
+  psi-alert: 0.25
+  ks-warn: 0.08
+  ks-alert: 0.15
+  recent-window: 2000
+  baseline-refresh-cron: "0 15 2 * * *"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    io.driftwatch: INFO
+    org.apache.kafka: WARN

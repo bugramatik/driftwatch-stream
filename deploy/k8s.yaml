@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: driftwatch-stream
+  labels:
+    app: driftwatch-stream
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: driftwatch-stream
+  template:
+    metadata:
+      labels:
+        app: driftwatch-stream
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/driftwatch/driftwatch-stream:0.4.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: driftwatch-db
+                  key: url
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: driftwatch-db
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: driftwatch-db
+                  key: password
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            - name: DRIFTWATCH_TOPIC
+              value: model.predictions
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: driftwatch-stream
+spec:
+  selector:
+    app: driftwatch-stream
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
